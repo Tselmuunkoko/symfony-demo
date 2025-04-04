@@ -1,0 +1,158 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Table and Chart Example{% endblock %}
+
+{% block body %}
+  <div class="container mx-auto px-4 py-6 flex flex-col gap-5">
+
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+      <h2 class="text-xl font-semibold p-4 border-b">Sample Data Table</h2>
+      <table class="min-w-full table-auto">
+        <thead>
+          <tr>
+            <th class="px-4 py-2 border-b text-left">ID</th>
+            <th class="px-4 py-2 border-b text-left">Name</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for i in departments %}
+          <tr data-id={{i.id}} class="load-department-btn hover:bg-gray-400 cursor-pointer">
+            <td class="px-4 py-2 border-b">{{i.id}}</td>
+            <td class="px-4 py-2 border-b">{{i.name}}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% set sales = [
+    {'name': 'Electronics', 'current': 12000, 'previous': 10000},
+    {'name': 'Books', 'current': 8000, 'previous': 9000},
+    {'name': 'Clothing', 'current': 5000, 'previous': 5000}
+] %}
+    <div class="flex items-center gap-4 mb-6">
+    <div>
+        <label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+        <input type="date" id="startDate" class="border rounded px-3 py-2 text-sm focus:ring focus:ring-blue-200" />
+    </div>
+    <div>
+        <label for="endDate" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+        <input type="date" id="endDate" class="border rounded px-3 py-2 text-sm focus:ring focus:ring-blue-200" />
+    </div>
+    <button
+        id="filterBtn"
+        class="self-end bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+    >
+        Filter
+    </button>
+    <button
+        id="exportBtn"
+        class="self-end bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        ⬇️ Export CSV
+    </button>
+</div>
+    <table class="exporting-table min-w-full bg-white shadow-md rounded-xl overflow-hidden text-sm">
+        <thead class="bg-gray-100 text-gray-700 uppercase text-xs">
+            <tr>
+                <th class="px-6 py-3 text-left">Department</th>
+                <th class="px-6 py-3 text-right">This Month</th>
+                <th class="px-6 py-3 text-right">Last Month</th>
+                <th class="px-6 py-3 text-right">Change</th>
+            </tr>
+        </thead>
+        <tbody class="text-gray-800 divide-y divide-gray-200">
+            {% for sale in sales %}
+                {% set growth = sale.previous != 0 ? ((sale.current - sale.previous) / sale.previous * 100)|round(1) : 0 %}
+                <tr>
+                    <td class="px-6 py-4">{{ sale.name }}</td>
+                    <td class="px-6 py-4 text-right">${{ sale.current|number_format(0, '.', ',') }}</td>
+                    <td class="px-6 py-4 text-right">${{ sale.previous|number_format(0, '.', ',') }}</td>
+                    <td class="px-6 py-4 text-right">
+                        {% if growth > 0 %}
+                            <span class="text-green-600 font-semibold">
+                                ▲ {{ growth }}%
+                            </span>
+                        {% elseif growth < 0 %}
+                            <span class="text-red-600 font-semibold">
+                                ▼ {{ growth|abs }}%
+                            </span>
+                        {% else %}
+                            <span class="text-gray-500 font-medium">–</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+      <h2 class="text-xl font-semibold p-4 border-b">Sample Chart</h2>
+      <canvas id="myChart" class="p-4"></canvas>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    let chartInstance;
+    document.querySelectorAll('.load-department-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const deptId = this.dataset.id;
+            fetch(`/department/${deptId}/sales`)
+                .then(res => res.text())
+                .then(
+                    res => {
+                        var sales = JSON.parse(res);
+                        if ('error' in sales) {
+                            alert('No sales data available for this department.');
+                            return;
+                        }
+                        // Clear previous chart
+                        if (chartInstance) {
+                            chartInstance.destroy();
+                        }
+                        var ctx = document.getElementById('myChart').getContext('2d');
+                        chartInstance = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: sales.map(sale => new Date(sale.saleMonth).toDateString()),
+                                datasets: [{
+                                label: 'Sales',
+                                data: sales.map(sale=>sale.saleAmount),
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                                }
+                            }
+                        });
+                    }
+                ).catch(err => console.error(err));
+        });
+    });
+    document.querySelectorAll('.load-department-btn')[0].click();
+    document.getElementById('exportBtn').addEventListener('click', function () {
+    const table = document.querySelectorAll('.exporting-table')[0];
+    const rows = Array.from(table.querySelectorAll('tr'));
+    const csv = [];
+
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('th, td');
+        const rowData = Array.from(cols).map(col => {
+            return `"${col.innerText.trim()}"`;
+        });
+        csv.push(rowData.join(','));
+    });
+
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sales-data.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+});
+</script>
+{% endblock %}
