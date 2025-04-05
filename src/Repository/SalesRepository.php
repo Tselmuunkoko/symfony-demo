@@ -16,28 +16,21 @@ class SalesRepository extends ServiceEntityRepository
         parent::__construct($registry, Sales::class);
     }
 
-    //    /**
-    //     * @return Sales[] Returns an array of Sales objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('s')
-    //            ->andWhere('s.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('s.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
-
-    //    public function findOneBySomeField($value): ?Sales
-    //    {
-    //        return $this->createQueryBuilder('s')
-    //            ->andWhere('s.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    public function findSalesByDateRange($prevStartDate, $startDate, $endDate)
+    {
+        return $this->getEntityManager()->createQuery(
+            'SELECT 
+                d.name AS department_name,
+                COALESCE(SUM(CASE WHEN s.month BETWEEN :startDate AND :endDate THEN s.amount ELSE 0 END), 0) AS current,
+                COALESCE(SUM(CASE WHEN s.month BETWEEN :prevStartDate AND :startDate THEN s.amount ELSE 0 END), 0) AS previous
+            FROM App\Entity\Sales s
+            JOIN s.department d
+            GROUP BY d.name
+            ORDER BY d.name DESC'
+        )
+        ->setParameter('startDate', $startDate)
+        ->setParameter('prevStartDate', $prevStartDate)
+        ->setParameter('endDate', $endDate)
+        ->getResult(); 
+    }
 }

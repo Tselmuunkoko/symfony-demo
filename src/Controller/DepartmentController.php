@@ -4,12 +4,13 @@ namespace App\Controller;
 use App\Entity\Department;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Repository\DepartmentRepository;
+use App\Repository\SalesRepository;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
+use App\Form\Type\DepartmentType;
 
 final class DepartmentController extends AbstractController
 {
@@ -17,15 +18,17 @@ final class DepartmentController extends AbstractController
     private $registry;
     private $departmentRepository;
     private $logger;
-    public function __construct(ManagerRegistry $registry, DepartmentRepository $departmentRepository, LoggerInterface $logger)
+    private $salesRepository;
+    public function __construct(ManagerRegistry $registry, DepartmentRepository $departmentRepository, LoggerInterface $logger, SalesRepository $salesRepository)
     {
         $this->registry = $registry;
         $this->departmentRepository = $departmentRepository;
+        $this->salesRepository = $salesRepository;
         $this->logger = $logger;
     }
 
     #[Route('/', name: 'app_department')]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $departments = $this->departmentRepository->findAll();
         $departmentsData = array_map(function ($department) {
@@ -34,102 +37,65 @@ final class DepartmentController extends AbstractController
                 'name' => $department->getName(),
             ];
         }, $departments);
+        $date = new \DateTime($request->query->get('month') ?: 'now');
+        $twoMonthPrior = clone $date;
+        $twoMonthPrior->sub(new \DateInterval('P2M'));
 
+        $monthPrior = clone $date;
+        $monthPrior->sub(new \DateInterval('P1M'));
+
+        $sales = $this->salesRepository->findSalesByDateRange($twoMonthPrior, $monthPrior, $date);    
+        $this->logger->info('Sales: ' . $this->json($sales));
         return $this->render('department/department.html.twig', [
-            'departments' => $departmentsData]);
-    }
-
-    #[Route('/department/{id}', name: 'app_department_show', methods: ['GET'])]
-    public function show(int $id): JsonResponse
-    {
-        $department = $this->departmentRepository->find($id);
-
-        if (!$department) {
-            return $this->json(['error' => 'Department not found'], 404);
-        }
-
-        return $this->json($department->getName());
+            'departments' => $departmentsData,
+            'sales' => $sales,
+            'month' => $date->format('Y-m'),
+        ]);
     }
 
     #[Route('/department', name: 'app_department_create', methods: ['POST'])]
-    public function create(Request $request): JsonResponse
+    public function create(Request $request): Response
     {
-        $data = json_decode($request->getContent(), true);
-        if (!isset($data['name'])) {
-            return $this->json(['error' => 'Department name is required'], 400);
-        }
+        $name = $request->request->get('name');
         $department = new Department();
-        $department->setName($data['name']);
+        $department->setName($name);
 
         $entityManager = $this->registry->getManager();
         $entityManager->persist($department);
         $entityManager->flush();
-
-        return $this->json($department, 201);
+        return $this->redirectToRoute('app_department');
     }
 
-    #[Route('/department/{id}', name: 'app_department_update', methods: ['PUT'])]
-    public function update(int $id, Request $request): JsonResponse
+    #[Route('/department/{id}', name: 'app_department_update', methods: ['GET', 'POST'])]
+    public function edit(Department $department, Request $request): Response
     {
-        $department = $this->departmentRepository->find($id);
+        $form = $this->createForm(DepartmentType::class, $department);
 
-        if (!$department) {
-            return $this->json(['error' => 'Department not found'], 404);
-        }
-        $data = json_decode($request->getContent(), true);
+        if ($request->isMethod('POST')) {
+            $form->handleRequest($request);
+            if ($form->isSubmitted() && $form->isValid()) {
+                $entityManager = $this->registry->getManager();
+                $entityManager->flush();
 
-        if (!isset($data['name'])) {
-            return $this->json(['error' => 'Department name is required'], 400);
+                return $this->redirectToRoute('app_department');
+            }
         }
-        $department->setName($data['name']);
-        $entityManager = $this->registry->getManager();
-        $entityManager->flush();
-        return $this->json($department->getName());
+        $sales = $this->departmentRepository->findSalesByDepartment($department->getId());
+        $this->logger->info('Sales: ' . $this->json($sales));
+        return $this->render('department/edit.html.twig', [
+            'form' => $form->createView(),
+            'department' => $department,
+            'sales' => $sales,
+        ]);
     }
  
-    #[Route('/department/{id}', name: 'app_department_delete', methods: ['DELETE'])]
-    public function delete(int $id): JsonResponse
+    #[Route('/department/delete/{id}', name: 'app_department_delete', methods: ['GET'])]
+    public function delete(Department $department): Response
     {
-        $department = $this->departmentRepository->find($id);
-
-        if (!$department) {
-            return $this->json(['error' => 'Department not found'], 404);
-        }
-
         $entityManager = $this->registry->getManager();
         $entityManager->remove($department);
         $entityManager->flush();
 
-        return $this->json(['message' => 'Department deleted successfully']);
+        return $this->redirectToRoute('app_department');
     }
-
-    #[Route('/department/{id}/sales', name: 'app_department_sales_by_date', methods: ['GET'])]
-    public function getSalesByDepartmentAndMonth(int $id, Request $request): JsonResponse
-    {
-        $department = $this->departmentRepository->find($id);
-        if (!$department) {
-            return $this->json(['error' => 'Department not found'], 404);
-        }
-
-        $startDate = $request->query->get('start_date');
-        $endDate = $request->query->get('end_date');
-        $this->logger->info('Start date: ' . $startDate);
-        $this->logger->info('End date: ' . $endDate);
-        if (!$startDate || !$endDate) {
-            $sales = $this->departmentRepository->findSalesByDepartment($id);
-            $this->logger->info('Sales: ' . $this->json($sales));
-            if (!$sales) {
-                return $this->json(['error' => 'No sales found for this department'], 404);
-            }
-            return $this->json($sales);
-        }
-        $sales = $this->departmentRepository->findSalesByDepartmentIdAndMonth($id, $startDate, $endDate);
-
-        if (!$sales) {
-            return $this->json(['error' => 'No sales found for this department in this month'], 404);
-        }
-        return $this->json($sales);
-    }
-
-
 }

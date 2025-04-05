@@ -26,18 +26,4 @@ class DepartmentRepository extends ServiceEntityRepository
         ->getQuery()
         ->getResult();
     }
-
-    public function findSalesByDepartmentIdAndMonth($departmentId, $startDate, $endDate)
-    {
-        return $this->createQueryBuilder('d')
-        ->select('s.id AS saleId', 's.month AS saleMonth', 's.amount AS saleAmount')
-        ->innerJoin('d.sales', 's')
-        ->where('d.id = :departmentId')
-        ->andWhere('s.month BETWEEN :startDate AND :endDate')
-        ->setParameter('departmentId', $departmentId)
-        ->setParameter('startDate', $startDate)
-        ->setParameter('endDate', $endDate)
-        ->getQuery()
-        ->getResult();
-    }
 }

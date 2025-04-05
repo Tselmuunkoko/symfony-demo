@@ -1,0 +1,57 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit Department{% endblock %}
+
+{% block body %}
+<div class="container mx-auto px-6 py-8 bg-white shadow-lg rounded-lg max-w-md">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-semibold text-gray-700">Edit Department</h1>
+        <a href="{{ path('app_department') }}" class="text-blue-600 hover:text-blue-800">Back</a>
+    </div>
+    {{ form_start(form) }}
+        <div class="mb-4 flex items-center justify-center space-x-4">
+            <div class="flex-1">
+                {{ form_widget(form.name, { 'attr': {'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'} }) }}
+                <div class="text-red-500 mt-1">
+                    {% for error in form.name.vars.errors %}
+                        <p>{{ error.message }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                Save Changes
+            </button>
+        </div>
+    {{ form_end(form) }}
+
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+      <h2 class="text-xl font-semibold p-4 border-b">Department Sales</h2>
+      <canvas id="myChart" class="p-4"></canvas>
+    </div>
+</div>
+<script>
+    var sales = JSON.parse('{{ sales|json_encode|raw }}');
+    var ctx = document.getElementById('myChart').getContext('2d');
+    var chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sales.map(sale => new Date(sale.saleMonth.date).toDateString()),
+            datasets: [{
+            label: 'Sales',
+            data: sales.map(sale=>sale.saleAmount),
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+            y: {
+                beginAtZero: true
+            }
+            }
+        }
+    });
+    </script>
+{% endblock %}

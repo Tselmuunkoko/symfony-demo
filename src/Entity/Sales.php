@@ -23,7 +23,7 @@ class Sales
     private ?float $amount = null;
 
     #[ORM\ManyToOne(inversedBy: 'sales')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?department $department = null;
 
     public function getId(): ?int

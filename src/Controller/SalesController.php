@@ -9,33 +9,25 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Doctrine\Persistence\ManagerRegistry;
 use App\Entity\Sales;
+use App\Repository\SalesRepository;
 
 final class SalesController extends AbstractController
 {
     private $registry;
-    public function __construct(ManagerRegistry $registry)
+    private $repository;
+    public function __construct(ManagerRegistry $registry, SalesRepository $salesRepository,)
     {
         $this->registry = $registry;
+        $this->repository = $salesRepository;
     }
 
     #[Route('/sales', name: 'app_sales', methods: ['GET'])]
     public function index(): JsonResponse
     {
-        $sales = $this->registry->getRepository(Sales::class)->findAll();
+        $sales = $this->repository->findAll();
         return $this->json($sales);
     }
 
-    #[Route('/sales/{id}', name: 'app_sales_show')]
-    public function show(int $id): JsonResponse
-    {
-        $sales = $this->registry->getRepository(Sales::class)->find($id);
-
-        if (!$sales) {
-            return $this->json(['error' => 'Sales not found'], 404);
-        }
-
-        return $this->json($sales);
-    }
     #[Route('/sales', name: 'app_sales_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
@@ -63,17 +55,6 @@ final class SalesController extends AbstractController
         $entityManager->flush();
 
         return $this->json($sales, 201);
-    }
-
-    #[Route('/sales/department/{departmentId}', name: 'app_sales_by_department')]
-    public function getSalesByDepartment(int $departmentId): JsonResponse
-    {
-        $sales = $this->registry->getRepository(Sales::class)->findBy(['department_id' => $departmentId]);
-
-        if (!$sales) {
-            return $this->json(['error' => 'No sales found for this department'], 404);
-        }
-        return $this->json($sales);
     }
 }
 
