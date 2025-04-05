@@ -30,9 +30,9 @@
             </tbody>
         </table>
         <div class="m-4">
-            <form method="POST" action="{{ path('app_department_create') }}">
+            <form method="POST" action="{{ path('app_department_create') }}" >
                 <label for="departmentName" class="block text-sm font-medium text-gray-700 mb-1">New Department Name:</label>
-                <input type="text" id="departmentName" name="name" required class="border px-2 py-1">
+                <input type="text" id="departmentName" name="name" required class="border w-[200px] rounded px-3 py-2 text-sm focus:ring focus:ring-blue-200">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Create Department</button>
             </form>
         </div>
@@ -40,10 +40,10 @@
     <div class="bg-white shadow-md rounded-lg">
         <h3 class="text-xl font-semibold p-4">Department Report</h3>
         <div class="m-4">
-        <form method="get" action="{{ path('app_department') }}" class="flex gap-4">
+        <form method="get" action="{{ path('app_department') }}" class="flex gap-2">
         <div>
             <label for="month" class="block text-sm font-medium text-gray-700 mb-1">Select month</label>
-            <input type="month" name="month" id="month" class="border rounded px-3 py-2 text-sm focus:ring focus:ring-blue-200" value="{{ month }}"/>
+            <input type="month" name="month" id="month" class="border w-[200px] rounded px-3 py-2 text-sm focus:ring focus:ring-blue-200" value="{{ month }}"/>
         </div>
         <button
             id="filterBtn"

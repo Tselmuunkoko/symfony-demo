@@ -30,6 +30,7 @@
       <canvas id="myChart" class="p-4"></canvas>
     </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     var sales = JSON.parse('{{ sales|json_encode|raw }}');
     var ctx = document.getElementById('myChart').getContext('2d');
